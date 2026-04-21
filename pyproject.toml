@@ -1,0 +1,20 @@
+[project]
+name = "dat255V26"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "jinja2>=3.1.6",
+    "keras>=3.14.0",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.3",
+    "pandas>=3.0.1",
+    "pydicom>=3.0.1",
+    "scikit-learn>=1.8.0",
+    "torch>=2.11.0",
+    "torchvision>=0.26.0",
+]
+
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cu130"
