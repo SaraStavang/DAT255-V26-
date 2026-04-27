@@ -1,5 +1,8 @@
 import keras
 from keras import layers
+from keras.applications import MobileNetV2
+from keras.applications.mobilenet_v2 import preprocess_input
+
 
 # -------------------
 # MODELS
@@ -244,6 +247,31 @@ def build_multiscale_model(input_shape):
 
     return keras.Model([inp1, inp2], out)
 
+def build_mobilenetv2_transfer(input_shape):
+    inputs = layers.Input(shape=input_shape)
+
+    # grayscale -> RGB
+    x = layers.Concatenate()([inputs, inputs, inputs])
+
+    # MobileNetV2 preprocess
+    x = layers.Rescaling(255.0)(x)
+    x = layers.Lambda(preprocess_input)(x)
+
+    base_model = MobileNetV2(
+        include_top=False,
+        weights="imagenet",
+        input_shape=(input_shape[0], input_shape[1], 3)
+    )
+    base_model.trainable = False
+
+    x = base_model(x, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(128, activation="relu")(x)
+    x = layers.Dropout(0.3)(x)
+    outputs = layers.Dense(1, activation="sigmoid")(x)
+
+    return keras.Model(inputs, outputs)
+    
 MODEL_REGISTRY = {
     "baseline": build_baseline,
     "deeper": build_deeper,
@@ -251,7 +279,8 @@ MODEL_REGISTRY = {
     "FCN": build_fcn_v2,
     "DFCN": build_deep_resnet_fcn,
     "PatchCNN": build_patch_cnn,
-    "multiscale": build_multiscale_model
+    "multiscale": build_multiscale_model,
+    "mobilenetv2_transfer": build_mobilenetv2_transfer, 
 }
 
 def load_model(model_name, input_shape):
