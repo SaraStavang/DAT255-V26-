@@ -1,5 +1,8 @@
 import keras
 from keras import layers
+from keras.applications import MobileNetV2
+from keras.applications.mobilenet_v2 import preprocess_input
+
 
 # -------------------
 # MODELS
@@ -8,13 +11,13 @@ def build_baseline(input_shape):
     return keras.Sequential([
         layers.Input(shape=input_shape),
 
-        layers.Conv2D(16, 3, activation='relu'),
+        layers.Conv2D(16, 3,activation='relu'),
         layers.MaxPooling2D(),
 
         layers.Conv2D(32, 3, activation='relu'),
         layers.MaxPooling2D(),
 
-        layers.Conv2D(64, 3, activation='relu'),
+        layers.Conv2D(64, 3,activation='relu'),
         layers.MaxPooling2D(),
 
         layers.Flatten(),
@@ -27,15 +30,15 @@ def build_deeper(input_shape):
     return keras.Sequential([
         layers.Input(shape=input_shape),
 
-        layers.Conv2D(32, 32, activation='relu'),
-        layers.Conv2D(32, 32, activation='relu'),
+        layers.Conv2D(32, 16,  padding='same',activation='relu'),
+        layers.Conv2D(32, 16, padding='same', activation='relu'),
         layers.MaxPooling2D(),
 
-        layers.Conv2D(64, 32, activation='relu'),
-        layers.Conv2D(64, 32, activation='relu'),
+        layers.Conv2D(64, 8, padding='same', activation='relu'),
+        layers.Conv2D(64, 8,  padding='same',activation='relu'),
         layers.MaxPooling2D(),
 
-        layers.Conv2D(128, 16, activation='relu'),
+        layers.Conv2D(128, 4,  padding='same',activation='relu'),
         layers.MaxPooling2D(),
 
         layers.Flatten(),
@@ -43,11 +46,11 @@ def build_deeper(input_shape):
         layers.Dense(1, activation='sigmoid')
     ])
 
-def build_stronger_model(input_shape):
+def build_deepv2_model(input_shape):
 
     inputs = layers.Input(shape=input_shape)
 
-    # --- Block 1 (bigger filters early) ---
+    # --- Block 1 ---
     x = layers.Conv2D(32, 7, padding='same', activation='relu')(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D()(x)
@@ -62,7 +65,7 @@ def build_stronger_model(input_shape):
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D()(x)
 
-    # --- Block 4 (important for context) ---
+    # --- Block 4 ---
     x = layers.Conv2D(128, 3, padding='same', activation='relu')(x)
     x = layers.BatchNormalization()(x)
 
@@ -72,6 +75,58 @@ def build_stronger_model(input_shape):
     # --- Dense head ---
     x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.4)(x)
+
+    outputs = layers.Dense(1, activation='sigmoid')(x)
+
+    return keras.Model(inputs, outputs)
+
+def build_deepv3_model(input_shape=(64, 64, 1)):
+
+    inputs = layers.Input(shape=input_shape)
+
+    # -------------------
+    # Block 1
+    # -------------------
+    x = layers.Conv2D(32, 3, padding='same')(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(32, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.MaxPooling2D()(x)  # 64 → 32
+
+
+    x = layers.Conv2D(64, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(64, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.MaxPooling2D()(x)  # 32 → 16
+
+
+    x = layers.Conv2D(128, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(128, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.MaxPooling2D()(x) 
+
+
+    x = layers.GlobalAveragePooling2D()(x)
+
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.4)(x)
+
+    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dropout(0.3)(x)
 
     outputs = layers.Dense(1, activation='sigmoid')(x)
 
@@ -100,107 +155,6 @@ def build_fcn_v2(input_shape):
     x = layers.GlobalMaxPooling2D()(x)
 
     return keras.Model(inputs, x)
-
-def residual_block(x, filters, stride=1):
-
-    shortcut = x
-
-    # main path
-    x = layers.Conv2D(filters, 3, strides=stride, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.Conv2D(filters, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-
-    # adjust shortcut if needed
-    if shortcut.shape[-1] != filters or stride != 1:
-        shortcut = layers.Conv2D(filters, 1, strides=stride, padding='same')(shortcut)
-        shortcut = layers.BatchNormalization()(shortcut)
-
-    x = layers.Add()([x, shortcut])
-    x = layers.Activation('relu')(x)
-
-    return x
-
-
-def build_deep_resnet_fcn(input_shape):
-    inputs = layers.Input(shape=input_shape)
-
-    x = layers.Conv2D(32, 7, strides=2, padding='same')(inputs)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    # --- Stage 1 ---
-    x = residual_block(x, 32)
-    x = residual_block(x, 32)
-
-    # --- Stage 2 ---
-    x = residual_block(x, 64, stride=2)
-    x = residual_block(x, 64)
-
-    # --- Stage 3 ---
-    x = residual_block(x, 128, stride=2)
-    x = residual_block(x, 128)
-
-    # --- Stage 4 ---
-    x = residual_block(x, 256, stride=2)
-    x = residual_block(x, 256)
-
-    # --- FCN head ---
-    x = layers.Conv2D(128, 1, activation='relu')(x)
-    x = layers.Conv2D(1, 1, activation='sigmoid')(x)
-
-    # --- global decision ---
-    x = layers.GlobalMaxPooling2D()(x)
-
-    return keras.Model(inputs, x)
-
-def build_patch_cnn(input_shape=(64, 64, 1)):
-
-    inputs = keras.Input(shape=input_shape)
-
-    # --- Block 1 ---
-    x = layers.Conv2D(32, 3, padding='same')(inputs)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.Conv2D(32, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.MaxPooling2D()(x) 
-
-    x = layers.Conv2D(64, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.Conv2D(64, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.MaxPooling2D()(x)  
-
-  
-    x = layers.Conv2D(128, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.Conv2D(128, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation('relu')(x)
-
-    x = layers.MaxPooling2D()(x) 
-
-
-    x = layers.GlobalAveragePooling2D()(x)
-
-    x = layers.Dense(64, activation='relu')(x)
-    x = layers.Dropout(0.3)(x)
-
-    outputs = layers.Dense(1, activation='sigmoid')(x)
-
-    return keras.Model(inputs, outputs)
 
 def build_multiscale_model(input_shape):
 
@@ -244,17 +198,220 @@ def build_multiscale_model(input_shape):
 
     return keras.Model([inp1, inp2], out)
 
+
+
+# -------------------
+# RESNET50 MODEL
+# -------------------
+def identity_block(x, filters):
+    f1, f2, f3 = filters
+
+    shortcut = x
+
+    x = layers.Conv2D(f1, 1, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(f2, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(f3, 1, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+
+    x = layers.Add()([x, shortcut])
+    x = layers.Activation('relu')(x)
+
+    return x
+
+def conv_block(x, filters, stride=2):
+    f1, f2, f3 = filters
+
+    shortcut = x
+
+    x = layers.Conv2D(f1, 1, strides=stride, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(f2, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    x = layers.Conv2D(f3, 1, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+
+    shortcut = layers.Conv2D(f3, 1, strides=stride, padding='same')(shortcut)
+    shortcut = layers.BatchNormalization()(shortcut)
+
+    x = layers.Add()([x, shortcut])
+    x = layers.Activation('relu')(x)
+
+    return x
+
+def build_resnet50(input_shape=(64, 64, 1)):
+
+    inputs = keras.Input(shape=input_shape)
+
+    # --- Stem (lighter than original) ---
+    x = layers.Conv2D(64, 3, strides=1, padding='same')(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    # ======================
+    # STAGE 2
+    # ======================
+    x = conv_block(x, [64, 64, 256], stride=1)
+    x = identity_block(x, [64, 64, 256])
+    x = identity_block(x, [64, 64, 256])
+
+    # ======================
+    # STAGE 3
+    # ======================
+    x = conv_block(x, [128, 128, 512])
+    x = identity_block(x, [128, 128, 512])
+    x = identity_block(x, [128, 128, 512])
+    x = identity_block(x, [128, 128, 512])
+
+    # ======================
+    # STAGE 4
+    # ======================
+    x = conv_block(x, [256, 256, 1024])
+    for _ in range(5):
+        x = identity_block(x, [256, 256, 1024])
+
+    # ======================
+    # STAGE 5
+    # ======================
+    x = conv_block(x, [512, 512, 2048])
+    x = identity_block(x, [512, 512, 2048])
+    x = identity_block(x, [512, 512, 2048])
+
+    # ======================
+    # CLASSIFICATION HEAD
+    # ======================
+    x = layers.GlobalAveragePooling2D()(x)
+
+    x = layers.Dense(256, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)
+
+    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dropout(0.3)(x)
+
+    outputs = layers.Dense(1, activation='sigmoid')(x)
+
+    return keras.Model(inputs, outputs)
+
+
+# -------------------
+# RESNET18
+# -------------------
+def basic_block(x, filters, stride=1):
+
+    shortcut = x
+
+    # --- Conv 1 ---
+    x = layers.Conv2D(filters, 3, strides=stride, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    # --- Conv 2 ---
+    x = layers.Conv2D(filters, 3, padding='same')(x)
+    x = layers.BatchNormalization()(x)
+
+    # --- Shortcut adjust ---
+    if shortcut.shape[-1] != filters or stride != 1:
+        shortcut = layers.Conv2D(filters, 1, strides=stride, padding='same')(shortcut)
+        shortcut = layers.BatchNormalization()(shortcut)
+
+    # --- Add ---
+    x = layers.Add()([x, shortcut])
+    x = layers.Activation('relu')(x)
+
+    return x
+
+def build_resnet18(input_shape=(64, 64, 1)):
+
+    inputs = layers.Input(shape=input_shape)
+
+    # --- Initial layer (smaller than ImageNet version) ---
+    x = layers.Conv2D(64, 3, strides=1, padding='same')(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+
+    # -------------------
+    # Stage 1 (64 filters)
+    # -------------------
+    x = basic_block(x, 64)
+    x = basic_block(x, 64)
+
+    # -------------------
+    # Stage 2 (128 filters)
+    # -------------------
+    x = basic_block(x, 128, stride=2)
+    x = basic_block(x, 128)
+
+    # -------------------
+    # Stage 3 (256 filters)
+    # -------------------
+    x = basic_block(x, 256, stride=2)
+    x = basic_block(x, 256)
+
+    # -------------------
+    # Stage 4 (512 filters)
+    # -------------------
+    x = basic_block(x, 512, stride=2)
+    x = basic_block(x, 512)
+
+    # -------------------
+    # Head
+    # -------------------
+    x = layers.GlobalAveragePooling2D()(x)
+
+    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dropout(0.5)(x)
+
+    outputs = layers.Dense(1, activation='sigmoid')(x)
+
+    return keras.Model(inputs, outputs)
+
+def build_mobilenetv2_transfer(input_shape):
+    inputs = layers.Input(shape=input_shape)
+
+    # grayscale -> RGB
+    x = layers.Concatenate()([inputs, inputs, inputs])
+
+    # MobileNetV2 preprocess
+    x = layers.Rescaling(255.0)(x)
+    x = layers.Lambda(preprocess_input)(x)
+
+    base_model = MobileNetV2(
+        include_top=False,
+        weights="imagenet",
+        input_shape=(input_shape[0], input_shape[1], 3)
+    )
+    base_model.trainable = False
+
+    x = base_model(x, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(128, activation="relu")(x)
+    x = layers.Dropout(0.3)(x)
+    outputs = layers.Dense(1, activation="sigmoid")(x)
+
+    return keras.Model(inputs, outputs)
+
 MODEL_REGISTRY = {
     "baseline": build_baseline,
     "deeper": build_deeper,
-    "strong": build_stronger_model,
-    "FCN": build_fcn_v2,
-    "DFCN": build_deep_resnet_fcn,
-    "PatchCNN": build_patch_cnn,
-    "multiscale": build_multiscale_model
+    "deeperv2": build_deepv2_model,
+    "deeperv3": build_deepv3_model,
+    "FCN": build_fcn_v2,    
+    "multiscale": build_multiscale_model,
+    "resnet50": build_resnet50,
+    "resnet18": build_resnet18,
+    "mobilenetv2_transfer": build_mobilenetv2_transfer, 
 }
 
-def load_model(model_name, input_shape):
+def get_model(model_name, input_shape):
 
     if model_name not in MODEL_REGISTRY:
         raise ValueError(
@@ -266,7 +423,7 @@ def load_model(model_name, input_shape):
     try:
         model = model_fn(input_shape)
     except TypeError:
-        # fallback if model doesn't take input_shape (rare case)
+        # fallback if model doesn't take input_shape
         model = model_fn()
 
     return model
