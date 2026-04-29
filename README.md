@@ -11,3 +11,4 @@ We have created a demo.ipynb notebook that demonstrates the performance of our b
 
 The full dataset used can be found here: https://www.physionet.org/content/vindr-mammo/1.0.0/
 Dataset is 53 GB compresed and over 300 GB unconpresed, therefore it is recomended to use the ZIP tools in the code to work on the compresed dataset.
+We have included some samples to make the Demo work.
