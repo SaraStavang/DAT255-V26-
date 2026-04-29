@@ -239,3 +239,4 @@ def extract_multiscale_patch(
     )
 
     return p_small, p_large
+

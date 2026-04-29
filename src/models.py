@@ -11,7 +11,7 @@ def build_baseline(input_shape):
     return keras.Sequential([
         layers.Input(shape=input_shape),
 
-        layers.Conv2D(16, 3,activation='relu'),
+        layers.Conv2D(16, 5,activation='relu'),
         layers.MaxPooling2D(),
 
         layers.Conv2D(32, 3, activation='relu'),
@@ -30,15 +30,15 @@ def build_deeper(input_shape):
     return keras.Sequential([
         layers.Input(shape=input_shape),
 
-        layers.Conv2D(32, 16,  padding='same',activation='relu'),
-        layers.Conv2D(32, 16, padding='same', activation='relu'),
+        layers.Conv2D(32, 3,  padding='same',activation='relu'),
+        layers.Conv2D(32, 3, padding='same', activation='relu'),
         layers.MaxPooling2D(),
 
-        layers.Conv2D(64, 8, padding='same', activation='relu'),
-        layers.Conv2D(64, 8,  padding='same',activation='relu'),
+        layers.Conv2D(64, 3, padding='same', activation='relu'),
+        layers.Conv2D(64, 3,  padding='same',activation='relu'),
         layers.MaxPooling2D(),
 
-        layers.Conv2D(128, 4,  padding='same',activation='relu'),
+        layers.Conv2D(128, 3,  padding='same',activation='relu'),
         layers.MaxPooling2D(),
 
         layers.Flatten(),
@@ -51,12 +51,12 @@ def build_deepv2_model(input_shape):
     inputs = layers.Input(shape=input_shape)
 
     # --- Block 1 ---
-    x = layers.Conv2D(32, 7, padding='same', activation='relu')(inputs)
+    x = layers.Conv2D(32, 3, padding='same', activation='relu')(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D()(x)
 
     # --- Block 2 ---
-    x = layers.Conv2D(64, 5, padding='same', activation='relu')(x)
+    x = layers.Conv2D(64, 3, padding='same', activation='relu')(x)
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D()(x)
 
@@ -84,29 +84,26 @@ def build_deepv3_model(input_shape=(64, 64, 1)):
 
     inputs = layers.Input(shape=input_shape)
 
-    # -------------------
-    # Block 1
-    # -------------------
-    x = layers.Conv2D(32, 3, padding='same')(inputs)
+    x = layers.Conv2D(32, 7, padding='same')(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
 
-    x = layers.Conv2D(32, 3, padding='same')(x)
+    x = layers.Conv2D(32, 7, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
 
-    x = layers.MaxPooling2D()(x)  # 64 → 32
+    x = layers.MaxPooling2D()(x)  
 
 
-    x = layers.Conv2D(64, 3, padding='same')(x)
+    x = layers.Conv2D(64, 5, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
 
-    x = layers.Conv2D(64, 3, padding='same')(x)
+    x = layers.Conv2D(64, 5, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
 
-    x = layers.MaxPooling2D()(x)  # 32 → 16
+    x = layers.MaxPooling2D()(x)  
 
 
     x = layers.Conv2D(128, 3, padding='same')(x)
@@ -164,7 +161,7 @@ def build_multiscale_model(input_shape):
 
     # --- SHARED FEATURE EXTRACTOR ---
     def branch(x):
-        x = layers.Conv2D(32, 3, padding='same')(x)
+        x = layers.Conv2D(32, 5, padding='same')(x)
         x = layers.BatchNormalization()(x)
         x = layers.Activation('relu')(x)
 
@@ -253,7 +250,7 @@ def build_resnet50(input_shape=(64, 64, 1)):
     inputs = keras.Input(shape=input_shape)
 
     # --- Stem (lighter than original) ---
-    x = layers.Conv2D(64, 3, strides=1, padding='same')(inputs)
+    x = layers.Conv2D(64, 7, strides=1, padding='same')(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
 
@@ -333,7 +330,7 @@ def build_resnet18(input_shape=(64, 64, 1)):
 
     inputs = layers.Input(shape=input_shape)
 
-    # --- Initial layer (smaller than ImageNet version) ---
+    # --- Initial layer ---
     x = layers.Conv2D(64, 3, strides=1, padding='same')(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
